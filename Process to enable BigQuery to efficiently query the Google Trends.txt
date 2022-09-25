@@ -1,0 +1,35 @@
+
+
+The Process to enable BigQuery to efficiently query the data from Cloud Storage.
+
+
+Step 1 : Save the file in cloud storage in below format 
+			gs://bucket/path/field_1=first/field_2=1/data.parquet
+			
+Step 2 : Run the below query in big query console 
+			
+			CREATE EXTERNAL TABLE dataset.CustomHivePartitionedTable
+			WITH PARTITION COLUMNS (
+			field_1 STRING, -- column order must match the external path
+			field_2 INT64)
+			OPTIONS (
+			uris = ['gs://bucket/path/*'],
+			format = 'PARQUET',
+			hive_partition_uri_prefix = 'gs://bucket/path',
+			require_hive_partition_filter = false);
+			
+			
+For pytrnds we can use 
+
+			gs://bucket/path/year="2022"/data.csv
+			
+			
+			CREATE EXTERNAL TABLE dataset.pytrnds_data
+			WITH PARTITION COLUMNS (
+			year STRING, 
+			)
+			OPTIONS (
+			uris = ['gs://bucket/path/*'],
+			format = 'csv',
+			hive_partition_uri_prefix = 'gs://bucket/path',
+			require_hive_partition_filter = false);
