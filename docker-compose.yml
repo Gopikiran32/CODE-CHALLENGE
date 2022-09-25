@@ -1,0 +1,97 @@
+version: '2.1'
+services:
+    redis:
+        image: 'redis:3.2.7'
+
+    postgres:
+        image: postgres:9.6
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        
+            - PGDATA=/var/lib/postgresql/data/pgdata
+        volumes:
+            - ./pgdata:/var/lib/postgresql/data/pgdata
+
+    webserver:
+        image: 'local_airflow:2.0.1'
+        restart: always
+        depends_on:
+            - postgres
+            - redis
+        environment:
+            - LOAD_EX=n
+            - FERNET_KEY=your_fernet_key
+            - EXECUTOR=Celery
+            - GOOGLE_APPLICATION_CREDENTIALS=""replace your gcp service account json file path"
+            - AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT=False
+            
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+            - REDIS_PASSWORD=redispass
+        volumes:
+            - ./airflow/dags:/usr/local/airflow/dags
+            - ./google_auth-dev.json:""replace your gcp service account json file path"
+        ports:
+            - "8080:8080"
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+    flower:
+        image: 'local_airflow:2.0.1'
+        restart: always
+        depends_on:
+            - redis
+        environment:
+            - EXECUTOR=Celery
+            - REDIS_PASSWORD=redispass
+        ports:
+            - "5555:5555"
+        command: flower
+
+    scheduler:
+        image: 'local_airflow:2.0.1'
+        restart: always
+        depends_on:
+            - webserver
+        volumes:
+            - ./airflow/dags:/usr/local/airflow/dags
+            - ./google_auth-dev.json:""replace your gcp service account json file path"
+        environment:
+            - LOAD_EX=n
+            - FERNET_KEY="your_fernet_key"
+            - EXECUTOR=Celery
+            - GOOGLE_APPLICATION_CREDENTIALS=""replace your gcp service account json file path"
+            - AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT=False
+            
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+            - REDIS_PASSWORD=redispass
+        command: scheduler
+
+    worker:
+        image: 'local_airflow:2.0.1'
+        restart: always
+        depends_on:
+            - scheduler
+        volumes:
+            - ./airflow/dags:/usr/local/airflow/dags
+            - ./google_auth-dev.json:""replace your gcp service account json file path"
+        environment:
+            - FERNET_KEY="your_fernet_key"
+            - EXECUTOR=Celery
+            - GOOGLE_APPLICATION_CREDENTIALS=""replace your gcp service account json file path"
+            - AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT=False
+            
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+            - REDIS_PASSWORD=redispass
+        command: worker
